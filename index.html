@@ -1,0 +1,344 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>The Quiet Loop</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,wght@0,400;0,600;1,500&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --ink: #0F1B2D;
+    --ink-2: #16283F;
+    --teal: #2BA6A4;
+    --gold: #E8C468;
+    --paper: #F7F3E9;
+    --text-hi: #EDEFF2;
+    --text-dim: #9FB0C3;
+    --text-ink: #1B2430;
+    box-sizing: border-box;
+    padding-top: env(safe-area-inset-top, 0px);
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+  }
+  * { box-sizing: border-box; }
+  html { scroll-behavior: smooth; scroll-padding-top: env(safe-area-inset-top, 0px); }
+  body {
+    margin: 0;
+    background: var(--ink);
+    color: var(--text-hi);
+    font-family: 'IBM Plex Sans', sans-serif;
+    line-height: 1.6;
+  }
+  h1, h2, .display {
+    font-family: 'Fraunces', serif;
+    font-weight: 600;
+    letter-spacing: -0.01em;
+  }
+  section { padding: clamp(48px, 8vw, 96px) clamp(20px, 6vw, 64px); }
+  .wrap { max-width: 780px; margin: 0 auto; }
+
+  /* Hero */
+  .hero { min-height: 82vh; display: flex; flex-direction: column; justify-content: center; position: relative; overflow: hidden; }
+  .hero-mark { font-family: 'IBM Plex Mono', monospace; font-size: 0.8rem; color: var(--teal); margin-bottom: 20px; }
+  .hero h1 { font-size: clamp(2.1rem, 5.5vw, 3.6rem); max-width: 15ch; margin: 0 0 20px; }
+  .hero p { color: var(--text-dim); max-width: 46ch; font-size: 1.05rem; }
+  .hero-graph { position: absolute; right: -8%; top: 50%; transform: translateY(-50%); opacity: 0.35; width: min(60vw, 520px); pointer-events: none; }
+
+  /* Demo section */
+  .demo { background: var(--ink-2); border-top: 1px solid rgba(255,255,255,0.06); border-bottom: 1px solid rgba(255,255,255,0.06); }
+  .demo .wrap { max-width: 920px; }
+  .demo-label { font-family: 'IBM Plex Mono', monospace; color: var(--teal); font-size: 0.8rem; margin-bottom: 10px; }
+  .demo h2 { font-size: clamp(1.6rem, 4vw, 2.2rem); margin: 0 0 12px; max-width: 20ch; }
+  .demo > .wrap > p { color: var(--text-dim); max-width: 58ch; margin-bottom: 36px; }
+
+  .panel { display: grid; grid-template-columns: 1.1fr 0.9fr; gap: 28px; align-items: start; }
+  @media (max-width: 720px) { .panel { grid-template-columns: 1fr; } }
+
+  .graph-box { background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.08); border-radius: 6px; padding: 20px; }
+  svg { width: 100%; height: auto; display: block; }
+  .node-circle { fill: var(--ink-2); stroke: var(--text-dim); stroke-width: 1.5; }
+  .node-label { fill: var(--text-hi); font-family: 'IBM Plex Mono', monospace; font-size: 13px; font-weight: 500; }
+  .edge-line { stroke: rgba(159,176,195,0.35); stroke-width: 1.4; fill: none; transition: stroke 0.4s ease, stroke-width 0.4s ease; }
+  .edge-line.active { stroke: var(--teal); stroke-width: 2.2; }
+  .edge-line.winner { stroke: var(--gold); stroke-width: 3; filter: drop-shadow(0 0 4px rgba(232,196,104,0.7)); }
+  .edge-rate { fill: var(--text-dim); font-family: 'IBM Plex Mono', monospace; font-size: 10.5px; }
+
+  .console-box { background: #0B1520; border: 1px solid rgba(255,255,255,0.08); border-radius: 6px; padding: 18px 18px 16px; display: flex; flex-direction: column; height: 100%; }
+  .console-log { font-family: 'IBM Plex Mono', monospace; font-size: 12.5px; color: var(--text-dim); flex: 1; min-height: 160px; white-space: pre-wrap; }
+  .console-log .line { opacity: 0; animation: fadeIn 0.3s ease forwards; }
+  .console-log .hit { color: var(--gold); }
+  @keyframes fadeIn { to { opacity: 1; } }
+
+  button#run {
+    margin-top: 14px; background: var(--teal); color: #06222199; color: #06201F; border: none; border-radius: 4px;
+    font-family: 'IBM Plex Mono', monospace; font-weight: 500; font-size: 13px; padding: 11px 16px; cursor: pointer;
+    transition: transform 0.15s ease, background 0.2s ease;
+  }
+  button#run:hover { background: #38c1bf; }
+  button#run:active { transform: scale(0.98); }
+  button#run:disabled { opacity: 0.5; cursor: default; }
+
+  .result {
+    margin-top: 16px; padding: 14px 16px; border-radius: 4px; border: 1px solid rgba(232,196,104,0.35);
+    background: rgba(232,196,104,0.08); font-family: 'IBM Plex Mono', monospace; font-size: 13px;
+    opacity: 0; transform: translateY(6px); transition: opacity 0.4s ease, transform 0.4s ease;
+  }
+  .result.show { opacity: 1; transform: translateY(0); }
+  .result strong { color: var(--gold); }
+
+  .aside-note { margin-top: 30px; color: var(--text-dim); font-size: 0.92rem; max-width: 60ch; }
+
+  /* Reflection / paper section */
+  .reflect { background: var(--paper); color: var(--text-ink); }
+  .reflect .wrap { max-width: 640px; }
+  .reflect .kicker { font-family: 'IBM Plex Mono', monospace; font-size: 0.78rem; color: #6b7a63; margin-bottom: 14px; }
+  .reflect h2 { color: var(--text-ink); font-size: clamp(1.5rem, 3.6vw, 2rem); margin: 0 0 18px; }
+  .reflect p { font-size: 1.05rem; }
+
+  /* Closing */
+  .closing { text-align: left; }
+  .closing .wrap { max-width: 640px; }
+  .closing p.display { font-size: clamp(1.3rem, 3.2vw, 1.7rem); font-style: italic; font-weight: 500; line-height: 1.45; margin: 0 0 24px; color: var(--text-hi); }
+  .sig { font-family: 'IBM Plex Mono', monospace; color: var(--teal); font-size: 0.9rem; }
+
+  a { color: var(--teal); }
+  ::selection { background: var(--gold); color: #16283F; }
+  @media (prefers-reduced-motion: reduce) { * { animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; } }
+</style>
+</head>
+<body>
+
+<section class="hero">
+  <div class="wrap">
+    <div class="hero-mark">Finn — Bachelor of computer &amp; information sciences, AUT</div>
+    <h1>Most inefficiency hides in plain sight.</h1>
+    <p>Below is a working currency arbitrage detector — the same algorithm I built for a university assignment, running live on real exchange-rate logic. It finds the one loop, out of many, where the numbers don't add up.</p>
+  </div>
+</section>
+
+<section class="demo" id="demo">
+  <div class="wrap">
+    <div class="demo-label">The demo</div>
+    <h2>Five currencies. One quiet loop.</h2>
+    <p>Each arrow below is a real exchange rate. Most round-trips lose you a fraction of a cent to spread — invisible, forgettable. Somewhere in this graph, one loop doesn't. Bellman-Ford finds it by checking every path for a cycle that multiplies to more than one.</p>
+
+    <div class="panel">
+      <div class="graph-box">
+        <svg viewBox="0 0 400 380" xmlns="http://www.w3.org/2000/svg" id="graphSvg">
+          <!-- edges drawn by JS-populated paths via defs below for control -->
+          <g id="edgesLayer"></g>
+          <g id="nodesLayer"></g>
+        </svg>
+      </div>
+
+      <div class="console-box">
+        <div class="console-log" id="log">watching for a loop that shouldn't exist&#8230;</div>
+        <button id="run">run detection</button>
+        <div class="result" id="result"></div>
+      </div>
+    </div>
+
+    <p class="aside-note">This is a small example — five currencies, a handful of rates. But the principle scales: the same search, pointed at power plans, insurance premiums, or grocery pricing, finds the same kind of quiet leak. That's the work I want to keep doing.</p>
+  </div>
+</section>
+
+<section class="reflect">
+  <div class="wrap">
+    <div class="kicker">A smaller example</div>
+    <h2>The same instinct, at a different scale</h2>
+    <p>I care about this at every size. In WhackANote, a rhythm game I built with a small team, my job was the part players never think about — the leaderboard and save data underneath the music. Getting it right meant a bug I hit could be traced back to Unity's own package rather than my code, and choosing to hold at an older, stable version rather than ship something fragile. Nobody claps for a leaderboard that just works. But it's the same care as the arbitrage loop above: find the thing that's quietly wrong, and fix it properly.</p>
+  </div>
+</section>
+
+	<section class="reflect" id="statement">
+		<div class="wrap">
+			<div class="kicker">The written statement</div>
+			<h2>Who I am underneath the code</h2>
+			<p>I grew up in Auckland with a controller in my hands. Long before I understood what a variable was, I was deconstructing and seeing how the levels worked, seeing how things interacted with each other. That curiosity, unyielding- is there a better way to do this? It hasn't really left. It's just changed shape as I've grown up.</p>
+			<p>By the time I got to my Computer and Information Sciences degree, I noticed the same question sitting behind everything I found interesting: not "does this work," but "does this work as well as it could." This is the common theme between these two projects that are mentioned below.</p>
+			<p>In Java, I created a currency arbitrage detector using the Bellman-Ford algorithm, a small utility that detects an inefficiency in exchange rates that a person would normally have to seek out manually.</p>
+			<p>In Unity, as part of a team project named "WhackANote," I handled the backend, which consisted of the leaderboard and save file functionality that brought life into a game. Both in different contexts, but the same principle: detect the inefficiency in a system that takes someone's time and improve it.</p>
+			<p>I don't yet know exactly which profession I wish to pursue. Game development and software engineering both pull at me, and I've stopped seeing that as indecision. They're the same craft, building systems that respect the person using them, aimed at different audiences. What I want, more than a fixed job title, is to keep working on problems where "smarter" is actually measurable: faster, fairer, less wasteful, more alive.</p>
+			<p>I'm applying for this scholarship because that kind of work takes room to explore, and financial pressure is the fastest way to lose that room. That balance is tighter than it looks. Both of my brothers are autistic, and one also has epilepsy, so a real part of my week goes into looking after them, which narrows how much paid work I can take on alongside my degree.</p>
+			<p>Right now I balance coursework with actually building things, not just for the marks, but because I really want to be good at this by the time I graduate, not just qualified. A scholarship like this buys back the hours I'd otherwise spend worrying about fees, and gives them back to projects like the one running above.</p>
+			<p>There is a unique utility value associated with New Zealand. Because of our size, one great idea, created by one person who knows how to sweat the details, can actually do something tangible to improve a business, a service, or a practice that people depend upon. I don't think about doing something grandiose or on a worldwide scale; rather, I want to create something that improves this place in an incremental and practical way, the same way a well-executed leaderboard or a well-discovered arbitrage loop would.</p>
+			<p>That's what I am behind all the code: a person who can't help noticing an untapped, quiet loop.</p>
+		</div>
+	</section>
+
+<section class="closing">
+  <div class="wrap">
+    <p class="display">I want to spend a career finding the loops nobody's checked yet — and building the tools that check them automatically, for people who'll never see the code underneath.</p>
+    <div class="sig">— Finn</div>
+  </div>
+</section>
+
+<script>
+(function(){
+  // ---- Graph data: real directed edges with real exchange rates ----
+  const nodes = [
+    {id:'NZD', x:200, y:40},
+    {id:'USD', x:360, y:150},
+    {id:'GBP', x:300, y:330},
+    {id:'AUD', x:100, y:330},
+    {id:'EUR', x:40, y:150},
+  ];
+  const edges = [
+    {from:'NZD', to:'USD', rate:0.60},
+    {from:'USD', to:'EUR', rate:0.95},
+    {from:'EUR', to:'NZD', rate:1.85},
+    {from:'USD', to:'GBP', rate:0.79},
+    {from:'GBP', to:'AUD', rate:1.92},
+    {from:'AUD', to:'USD', rate:0.66},
+    {from:'EUR', to:'GBP', rate:0.87},
+    {from:'GBP', to:'EUR', rate:1.14},
+  ];
+
+  const nodeById = Object.fromEntries(nodes.map(n=>[n.id,n]));
+  const edgesLayer = document.getElementById('edgesLayer');
+  const nodesLayer = document.getElementById('nodesLayer');
+
+  function edgeId(e){ return e.from+'_'+e.to; }
+
+  // Draw edges as slightly curved paths with rate labels
+  edges.forEach(e=>{
+    const a = nodeById[e.from], b = nodeById[e.to];
+    const mx = (a.x+b.x)/2, my = (a.y+b.y)/2;
+    const dx = b.x-a.x, dy=b.y-a.y;
+    const nx = -dy, ny = dx;
+    const norm = Math.hypot(nx,ny)||1;
+    const off = 14;
+    const cx = mx + (nx/norm)*off, cy = my + (ny/norm)*off;
+
+    const path = document.createElementNS('http://www.w3.org/2000/svg','path');
+    path.setAttribute('d', `M ${a.x} ${a.y} Q ${cx} ${cy} ${b.x} ${b.y}`);
+    path.setAttribute('class','edge-line');
+    path.setAttribute('marker-end','url(#arrow)');
+    path.id = 'edge-'+edgeId(e);
+    edgesLayer.appendChild(path);
+
+    const label = document.createElementNS('http://www.w3.org/2000/svg','text');
+    label.setAttribute('x', cx);
+    label.setAttribute('y', cy);
+    label.setAttribute('class','edge-rate');
+    label.setAttribute('text-anchor','middle');
+    label.textContent = e.rate.toFixed(2);
+    edgesLayer.appendChild(label);
+  });
+
+  // arrow marker
+  const defs = document.createElementNS('http://www.w3.org/2000/svg','defs');
+  defs.innerHTML = `<marker id="arrow" markerWidth="8" markerHeight="8" refX="7" refY="3" orient="auto"><path d="M0,0 L0,6 L7,3 z" fill="#9FB0C3"/></marker>`;
+  document.getElementById('graphSvg').prepend(defs);
+
+  // nodes
+  nodes.forEach(n=>{
+    const g = document.createElementNS('http://www.w3.org/2000/svg','g');
+    const c = document.createElementNS('http://www.w3.org/2000/svg','circle');
+    c.setAttribute('cx', n.x); c.setAttribute('cy', n.y); c.setAttribute('r', 26);
+    c.setAttribute('class','node-circle');
+    const t = document.createElementNS('http://www.w3.org/2000/svg','text');
+    t.setAttribute('x', n.x); t.setAttribute('y', n.y+4);
+    t.setAttribute('text-anchor','middle'); t.setAttribute('class','node-label');
+    t.textContent = n.id;
+    g.appendChild(c); g.appendChild(t);
+    nodesLayer.appendChild(g);
+  });
+
+  // ---- Real Bellman-Ford negative-cycle detection ----
+  function findArbitrage(edges, nodeIds){
+    const weighted = edges.map(e=>({...e, w: -Math.log(e.rate)}));
+    const dist = {}; const pred = {};
+    nodeIds.forEach(id=>{ dist[id]=0; pred[id]=null; }); // virtual source, all dist=0
+
+    let cycleEdge = null;
+    for(let i=0;i<nodeIds.length;i++){
+      cycleEdge = null;
+      for(const e of weighted){
+        if(dist[e.from] + e.w < dist[e.to] - 1e-12){
+          dist[e.to] = dist[e.from] + e.w;
+          pred[e.to] = e.from;
+          cycleEdge = e.to;
+        }
+      }
+      if(!cycleEdge && i>0) break;
+    }
+    if(!cycleEdge) return null;
+
+    // walk back |V| steps to guarantee landing on the cycle
+    let v = cycleEdge;
+    for(let i=0;i<nodeIds.length;i++) v = pred[v];
+    const cyclePath = [];
+    let cur = v;
+    do { cyclePath.push(cur); cur = pred[cur]; } while(cur !== v);
+    cyclePath.push(v);
+    cyclePath.reverse();
+
+    // compute real product of rates around the cycle
+    let product = 1;
+    const usedEdges = [];
+    for(let i=0;i<cyclePath.length-1;i++){
+      const f = cyclePath[i], t = cyclePath[i+1];
+      const edge = edges.find(e=>e.from===f && e.to===t);
+      if(edge){ product *= edge.rate; usedEdges.push(edge); }
+    }
+    return { path: cyclePath, product, usedEdges };
+  }
+
+  const nodeIds = nodes.map(n=>n.id);
+  const runBtn = document.getElementById('run');
+  const logEl = document.getElementById('log');
+  const resultEl = document.getElementById('result');
+
+  function logLine(text, cls){
+    const d = document.createElement('div');
+    d.className = 'line' + (cls?(' '+cls):'');
+    d.textContent = text;
+    logEl.appendChild(d);
+    logEl.scrollTop = logEl.scrollHeight;
+  }
+
+  runBtn.addEventListener('click', ()=>{
+    runBtn.disabled = true;
+    logEl.innerHTML = '';
+    resultEl.classList.remove('show');
+    document.querySelectorAll('.edge-line').forEach(el=>el.classList.remove('active','winner'));
+
+    const scanOrder = edges.map(e=>edgeId(e));
+    let i = 0;
+    const found = findArbitrage(edges, nodeIds);
+
+    const step = ()=>{
+      if(i < scanOrder.length){
+        const e = edges[i];
+        logLine(`checking ${e.from} \u2192 ${e.to}  (${e.rate.toFixed(2)})`);
+        const el = document.getElementById('edge-'+scanOrder[i]);
+        if(el) el.classList.add('active');
+        i++;
+        setTimeout(step, 220);
+      } else {
+        setTimeout(()=>{
+          if(found){
+            logLine('cycle detected \u2014 tracing loop\u2026', 'hit');
+            found.usedEdges.forEach(e=>{
+              const el = document.getElementById('edge-'+edgeId(e));
+              if(el) el.classList.add('winner');
+            });
+            const gain = ((found.product-1)*100).toFixed(2);
+            resultEl.innerHTML = `<strong>Loop found:</strong> ${found.path.join(' \u2192 ')}<br>Compounded rate: ${found.product.toFixed(4)} &nbsp;&mdash;&nbsp; <strong>${gain}% edge</strong>, invisible unless you check every path.`;
+          } else {
+            logLine('no exploitable cycle found in this graph.');
+            resultEl.innerHTML = `No arbitrage this round \u2014 the market's clean. Run it again after rates shift.`;
+          }
+          resultEl.classList.add('show');
+          runBtn.disabled = false;
+        }, 300);
+      }
+    };
+    step();
+  });
+})();
+</script>
+</body>
+</html>
